@@ -1,7 +1,12 @@
+use std::collections::HashMap;
 use std::io::Write;
-use reqwest::{Client, multipart};
+use hyper::{Body, Client, Method, Request, Response};
+use hyper::body::HttpBody;
+use hyper::client::HttpConnector;
+use hyper::header::CONTENT_LENGTH;
+use hyper_tls::HttpsConnector;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderValue};
-use reqwest::multipart::{Form, Part};
+use serde_json::json;
 use yup_oauth2::{AccessToken};
 use google_indexing_api::{GoogleIndexingApi, UrlNotificationsType};
 
@@ -19,15 +24,21 @@ async fn test_token() -> AccessToken {
     token.unwrap()
 }
 
-
 #[tokio::test]
 async fn test_sitemaps() {
     let token = test_token().await;
-    let test_url = "https://example.com/".to_string();
-    let res = GoogleIndexingApi::url_notifications().publish(
-        token.as_str(), test_url.as_str(), UrlNotificationsType::DELETED).await;
-    assert!(res.is_ok());
-    let res = GoogleIndexingApi::url_notifications().get_metadata(
-        token.as_str(), test_url.as_str()).await.unwrap();
-    assert!(res.is_ok());
+    let a = GoogleIndexingApi::url_notifications().batch(
+        token.as_str(),
+        vec![
+            "http://example.com/widgets/1".to_string(),
+            "http://example.com/widgets/2".to_string(),
+        ],
+        UrlNotificationsType::UPDATED
+    ).await;
+    assert!(a.is_ok(), "{}", a.err().unwrap().to_string());
+
+    for value in a.unwrap(){
+        println!("{} {:?}",value.url(),value.json());
+    }
 }
+

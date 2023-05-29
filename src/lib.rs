@@ -61,6 +61,13 @@ impl UrlNotificationsApi {
             format!(r#"https://indexing.googleapis.com/v3/urlNotifications/metadata?url={}"#, encode(url), ).as_str(),
         ).await?)
     }
+    pub async fn batch(&self, token: &str, urls: Vec<String>, url_type: UrlNotificationsType) -> Result<Vec<GoogleIndexingBatch>, GoogleApiError> {
+        Ok(HttpClient::execute(
+            token,
+            urls,
+            url_type,
+        ).await?)
+    }
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
@@ -82,3 +89,28 @@ pub struct ResponseUrlNotification {
 }
 
 
+#[derive(Debug, Default)]
+pub struct GoogleIndexingBatch {
+    url: String,
+    status_code: u16,
+    value: String,
+}
+
+impl GoogleIndexingBatch {
+    pub fn url(&self) -> &str {
+        self.url.as_str()
+    }
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+    pub fn value(&self) -> &str {
+        self.value.as_str()
+    }
+    pub fn json(&self) -> Value {
+        let v = serde_json::from_str(self.value.as_str());
+        if v.is_ok() {
+            return v.unwrap();
+        }
+        Value::default()
+    }
+}
