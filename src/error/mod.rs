@@ -8,8 +8,8 @@ pub enum GoogleApiError {
 impl GoogleApiError {
     pub fn to_string(&self) -> String {
         match self {
-            GoogleApiError::Connection(e) => { e.to_string() }
-            GoogleApiError::JsonParse(e) => { e.to_string() }
+            GoogleApiError::Connection(e) => e.to_string(),
+            GoogleApiError::JsonParse(e) => e.to_string(),
         }
     }
 }

@@ -1,22 +1,20 @@
-use std::collections::HashMap;
-use std::fmt::{Debug};
-use hyper::{Body, Client, Method, Request};
+use crate::error::GoogleApiError;
+use crate::{ResponseGoogleIndexingBatch, UrlNotificationsType};
 use hyper::header::{AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use hyper::http::HeaderValue;
+use hyper::{Body, Client, Method, Request};
 use hyper_tls::HttpsConnector;
-use serde_json::{json};
-use crate::error::GoogleApiError;
-use crate::{GoogleIndexingBatch, UrlNotificationsType};
-
+use serde_json::json;
+use std::collections::HashMap;
+use std::fmt::Debug;
 
 #[derive(Default, Debug)]
 pub(crate) struct HttpClient {}
 
-
 impl HttpClient {
     pub async fn get<T>(token: &str, url: &str) -> Result<T, GoogleApiError>
-        where
-            T: for<'de> serde::Deserialize<'de>,
+    where
+        T: for<'de> serde::Deserialize<'de>,
     {
         let mut response = reqwest::Client::new()
             .get(format!("{}", url))
@@ -26,9 +24,10 @@ impl HttpClient {
 
         let response = response.send().await;
 
-
         if response.is_err() {
-            return Err(GoogleApiError::Connection(response.err().unwrap().to_string()));
+            return Err(GoogleApiError::Connection(
+                response.err().unwrap().to_string(),
+            ));
         }
         let response = response.unwrap();
         let status = response.status();
@@ -48,23 +47,20 @@ impl HttpClient {
         Ok(parse.unwrap())
     }
     pub async fn post<T, U>(token: &str, url: &str, params: U) -> Result<T, GoogleApiError>
-        where
-            T: for<'de> serde::Deserialize<'de>,
-            U: serde::Serialize + std::fmt::Debug
+    where
+        T: for<'de> serde::Deserialize<'de>,
+        U: serde::Serialize + std::fmt::Debug,
     {
-        let mut response = reqwest::Client::new()
-            .post(format!("{}", url));
+        let mut response = reqwest::Client::new().post(format!("{}", url));
         if !token.is_empty() {
             response = response.header("Authorization", format!("Bearer {}", token))
         }
-        let response = response
-            .json(&json!(params))
-            .send()
-            .await;
-
+        let response = response.json(&json!(params)).send().await;
 
         if response.is_err() {
-            return Err(GoogleApiError::Connection(response.err().unwrap().to_string()));
+            return Err(GoogleApiError::Connection(
+                response.err().unwrap().to_string(),
+            ));
         }
         let response = response.unwrap();
         let status = response.status();
@@ -84,15 +80,20 @@ impl HttpClient {
         Ok(parse.unwrap())
     }
 
-    pub async fn execute(token: &str, urls: Vec<String>,url_type: UrlNotificationsType) -> Result<Vec<GoogleIndexingBatch> ,GoogleApiError>{
+    pub async fn execute(
+        token: &str,
+        urls: Vec<String>,
+        url_type: UrlNotificationsType,
+    ) -> Result<Vec<ResponseGoogleIndexingBatch>, GoogleApiError> {
         // マルチパートフォームデータのバウンダリー
         let boundary = "===============7330845974216740156==";
         let boundary2 = "--===============7330845974216740156==";
         fn make_row(index: isize, url: &str, url_type: &str) -> (String, String, String) {
             let body = json!({
-            "url":url,
-            "type":url_type,
-        }).to_string();
+                "url":url,
+                "type":url_type,
+            })
+            .to_string();
             let id = format!("b29c5de2-0db4-490b-b421-6a51b598bd23+{}", index + 1);
             (
                 id.to_string(),
@@ -108,16 +109,26 @@ impl HttpClient {
                     format!("content-length: {}", body.len()).as_str(),
                     "",
                     body.as_str(),
-                ].join("\r\n")
+                ]
+                .join("\r\n"),
             )
         }
 
-        let send_data1 = urls.iter().enumerate().map(|(i, url)| {
-            make_row(i as isize, url, url_type.to_string().as_str())
-        }).collect::<Vec<(String, String, String)>>();
+        let send_data1 = urls
+            .iter()
+            .enumerate()
+            .map(|(i, url)| make_row(i as isize, url, url_type.to_string().as_str()))
+            .collect::<Vec<(String, String, String)>>();
 
-        let key_values = send_data1.clone().iter().map(|q| (q.0.to_string(), q.1.to_string())).collect::<Vec<(String, String)>>();
-        let send_body = send_data1.iter().map(|q| q.2.to_string()).collect::<Vec<String>>()
+        let key_values = send_data1
+            .clone()
+            .iter()
+            .map(|q| (q.0.to_string(), q.1.to_string()))
+            .collect::<Vec<(String, String)>>();
+        let send_body = send_data1
+            .iter()
+            .map(|q| q.2.to_string())
+            .collect::<Vec<String>>()
             .join(format!("\r\n{}\r\n", boundary2).as_str());
         // マルチパートフォームデータのテキスト部分
         let text_parts = [
@@ -143,7 +154,6 @@ impl HttpClient {
         // マルチパートフォームデータをリクエストボディに設定
         *request.body_mut() = Body::from(text_parts.join("\r\n"));
 
-
         let c = HttpsConnector::new();
         let client = Client::builder().build(c);
 
@@ -160,19 +170,25 @@ impl HttpClient {
 
         let mut content_type = "".to_string();
         if headers.get("Content-Type").is_some() {
-            content_type = headers.get("Content-Type").unwrap().to_str().unwrap().to_string();
+            content_type = headers
+                .get("Content-Type")
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string();
         }
 
         // let b = response.into_parts();
         // println!("b {:?}", b);
         // レスポンスのボディの読み取り
-        let body = hyper::body::to_bytes(response.into_body()).await.unwrap().to_vec();
+        let body = hyper::body::to_bytes(response.into_body())
+            .await
+            .unwrap()
+            .to_vec();
         let boundary = get_boundary(content_type.as_str());
         let body = String::from_utf8(body).unwrap();
 
-
         let mut batch_response = vec![];
-
 
         let boundary_bodies = body_boundary_split(body.as_str(), boundary.as_str());
         for boundary_body in boundary_bodies {
@@ -184,17 +200,17 @@ impl HttpClient {
                     break;
                 }
             }
-            batch_response.push(GoogleIndexingBatch {
+            batch_response.push(ResponseGoogleIndexingBatch {
                 url: http_url,
                 status_code: http.status_code,
                 value: http.content,
             });
         }
 
-
         Ok(batch_response)
     }
-}fn get_boundary(value: &str) -> String {
+}
+fn get_boundary(value: &str) -> String {
     if !value.contains("multipart/mixed") {
         return "".to_string();
     }
@@ -215,7 +231,13 @@ fn plane_http_to_response(content: &str) -> HttpResponse {
     if content_type.contains("application/http") {
         let mut content_id = http.content_id.to_string();
         if http.header.get("Content-ID").is_some() {
-            content_id = http.header.get("Content-ID").unwrap().trim_start_matches("<response-").trim_end_matches(">").to_string();
+            content_id = http
+                .header
+                .get("Content-ID")
+                .unwrap()
+                .trim_start_matches("<response-")
+                .trim_end_matches(">")
+                .to_string();
         }
         let mut http = plane_http_to_response(body.as_str());
         http.content_id = content_id;
@@ -249,7 +271,11 @@ fn header_from_plane_text(value: &str) -> HttpResponse {
     let mut response = HttpResponse::default();
     for row in rows {
         if row.starts_with("HTTP/1.1") {
-            let tmp_status = row.to_string().split(" ").map(|q| q.to_string()).collect::<Vec<String>>();
+            let tmp_status = row
+                .to_string()
+                .split(" ")
+                .map(|q| q.to_string())
+                .collect::<Vec<String>>();
             if tmp_status.get(2).is_some() {
                 response.status_code = tmp_status.get(1).unwrap().parse().unwrap_or_default();
                 response.status_name = tmp_status.get(2).unwrap().parse().unwrap_or_default();
@@ -263,13 +289,17 @@ fn header_from_plane_text(value: &str) -> HttpResponse {
     return response;
 }
 
-
 fn body_boundary_split(content: &str, boundary: &str) -> Vec<String> {
     let end_boundary = format!("--{}--", boundary);
     if !content.contains(end_boundary.as_str()) {
         return vec![];
     }
-    let content = content.split(end_boundary.as_str()).collect::<Vec<&str>>().get(0).unwrap().to_string();
+    let content = content
+        .split(end_boundary.as_str())
+        .collect::<Vec<&str>>()
+        .get(0)
+        .unwrap()
+        .to_string();
 
     content
         .split(format!("--{}", boundary).as_str())
@@ -277,7 +307,6 @@ fn body_boundary_split(content: &str, boundary: &str) -> Vec<String> {
         .filter(|q| !q.is_empty())
         .collect::<Vec<String>>()
 }
-
 
 #[derive(Debug, Default)]
 struct HttpResponse {
