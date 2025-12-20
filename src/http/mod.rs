@@ -2,8 +2,12 @@ use crate::error::GoogleApiError;
 use crate::{ResponseGoogleIndexingBatch, UrlNotificationsType};
 use hyper::header::{AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use hyper::http::HeaderValue;
-use hyper::{Body, Client, Method, Request};
+use hyper::{Method, Request};
+use hyper::body::Bytes;
 use hyper_tls::HttpsConnector;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
+use http_body_util::{BodyExt, Full};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -141,7 +145,7 @@ impl HttpClient {
         let mut request = Request::builder()
             .method(Method::POST)
             .uri("https://indexing.googleapis.com/batch")
-            .body(Body::empty())
+            .body(Full::new(Bytes::new()))
             .unwrap();
 
         let headers = request.headers_mut();
@@ -152,10 +156,10 @@ impl HttpClient {
         headers.insert(CONTENT_LENGTH, HeaderValue::from_static("content_length"));
 
         // マルチパートフォームデータをリクエストボディに設定
-        *request.body_mut() = Body::from(text_parts.join("\r\n"));
+        *request.body_mut() = Full::new(Bytes::from(text_parts.join("\r\n")));
 
         let c = HttpsConnector::new();
-        let client = Client::builder().build(c);
+        let client = Client::builder(TokioExecutor::new()).build(c);
 
         // リクエストの送信とレスポンスの取得
         let response = client.request(request).await.unwrap();
@@ -181,9 +185,12 @@ impl HttpClient {
         // let b = response.into_parts();
         // println!("b {:?}", b);
         // レスポンスのボディの読み取り
-        let body = hyper::body::to_bytes(response.into_body())
+        let body = response
+            .into_body()
+            .collect()
             .await
             .unwrap()
+            .to_bytes()
             .to_vec();
         let boundary = get_boundary(content_type.as_str());
         let body = String::from_utf8(body).unwrap();
