@@ -8,10 +8,15 @@
 A Rust library for interfacing with the [Google Indexing API](https://developers.google.com/search/apis/indexing-api/v3/quickstart).
 Notify Google when pages are added, updated, or deleted on your website for faster indexing in search results.
 
+> **Note:** Google officially supports the Indexing API only for pages containing
+> [`JobPosting`](https://developers.google.com/search/docs/appearance/structured-data/job-posting) or
+> [`BroadcastEvent`](https://developers.google.com/search/docs/appearance/structured-data/video#broadcast-event)
+> structured data. For other page types, use sitemaps and Google Search Console instead.
+
 ## Features
 
 - **URL Notifications**: Notify Google about URL updates and deletions
-- **Metadata Retrieval**: Fetch metadata about indexed URLs from Google
+- **Metadata Retrieval**: Fetch metadata about notifications previously sent to the Indexing API
 - **Batch Operations**: Process multiple URLs efficiently in a single request (up to 100 URLs)
 - **Async/Await Support**: Built with Tokio for modern async Rust applications
 - **Type-Safe API**: Leverages Rust's type system for safer API interactions
@@ -33,7 +38,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-google-indexing-api = "1.0"
+google-indexing-api = "1.1"
 tokio = { version = "1", features = ["full"] }
 yup-oauth2 = "12" # For authentication
 ```
@@ -99,7 +104,7 @@ let response = api.publish(
     UrlNotificationsType::DELETED
 ).await?;
 
-// Get metadata about a URL
+// Get metadata about notifications previously sent for a URL
 let metadata = api.get_metadata(
     token_str,
     "https://example.com/article"
@@ -130,10 +135,9 @@ let batch_response = api.batch(
 // Process batch results
 for result in batch_response {
     println!("URL: {}", result.url());
-    println!("Status Code: {}", result.status_code);
-    if let Some(json) = result.json() {
-        println!("Response: {:?}", json);
-    }
+    println!("Status Code: {}", result.status_code());
+    // json() returns a serde_json::Value (Value::Null if the body is not JSON)
+    println!("Response: {:?}", result.json());
 }
 ```
 
@@ -145,22 +149,24 @@ Creates a new API client for URL notifications.
 
 ### Methods
 
-#### `publish(token: &str, url: &str, notification_type: UrlNotificationsType) -> Result<T, GoogleApiError>`
+#### `publish(token: &str, url: &str, notification_type: UrlNotificationsType) -> Result<serde_json::Value, GoogleApiError>`
 
-Notify Google about a single URL update or deletion.
+Notify Google about a single URL update or deletion. Returns the raw JSON response.
 
 **Parameters:**
 - `token`: OAuth2 access token
 - `url`: The URL to notify Google about
 - `notification_type`: Either `UrlNotificationsType::UPDATED` or `UrlNotificationsType::DELETED`
 
-#### `get_metadata(token: &str, url: &str) -> Result<T, GoogleApiError>`
+#### `get_metadata(token: &str, url: &str) -> Result<ResponseUrlNotificationMetadata, GoogleApiError>`
 
-Retrieve metadata about a URL from Google's index.
+Retrieve metadata about notifications previously sent for a URL through the Indexing API
+(`latest_update` / `latest_remove`). It does not tell you whether the URL is indexed
+by Google — use the Search Console URL Inspection API for that.
 
 **Parameters:**
 - `token`: OAuth2 access token
-- `url`: The URL to get metadata for
+- `url`: The URL to get notification metadata for
 
 #### `batch(token: &str, urls: Vec<String>, notification_type: UrlNotificationsType) -> Result<Vec<ResponseGoogleIndexingBatch>, GoogleApiError>`
 
@@ -168,7 +174,7 @@ Notify Google about multiple URLs in a single batch request.
 
 **Parameters:**
 - `token`: OAuth2 access token
-- `urls`: Vector of URLs (up to 100)
+- `urls`: Vector of URLs (1 to 100 entries; other sizes are rejected with `GoogleApiError::InvalidArgument`)
 - `notification_type`: Either `UrlNotificationsType::UPDATED` or `UrlNotificationsType::DELETED`
 
 ### URL Notification Types
@@ -182,16 +188,24 @@ pub enum UrlNotificationsType {
 
 ## Error Handling
 
-The library provides comprehensive error handling through the `GoogleApiError` enum:
+All API calls return a `GoogleApiError`. It implements `std::error::Error`, so it works
+with `?` and `Box<dyn std::error::Error>`:
 
 ```rust
 use google_indexing_api::GoogleApiError;
 
 match api.publish(token_str, url, UrlNotificationsType::UPDATED).await {
     Ok(response) => println!("Success: {:?}", response),
+    // The request could not be sent (network problem, DNS, TLS, ...)
     Err(GoogleApiError::Connection(e)) => eprintln!("Connection error: {}", e),
-    Err(GoogleApiError::JsonParse(e)) => eprintln!("JSON parse error: {}", e),
-    Err(e) => eprintln!("Other error: {:?}", e),
+    // The API answered with an error status; the status code and body are kept
+    Err(GoogleApiError::HttpStatus(status, body)) => {
+        eprintln!("API returned {}: {}", status, body)
+    }
+    // The response could not be parsed (invalid JSON or a malformed batch response)
+    Err(GoogleApiError::JsonParse(e)) => eprintln!("Parse error: {}", e),
+    // The input was rejected before sending (e.g. batch size out of range)
+    Err(GoogleApiError::InvalidArgument(e)) => eprintln!("Invalid argument: {}", e),
 }
 ```
 
@@ -205,14 +219,15 @@ For batch operations, each URL in the batch counts toward your quota.
 
 ## Examples
 
-See the [tests](tests/) directory for more complete examples including:
-- Service account authentication
-- Batch processing
-- Error handling patterns
+See the [tests](tests/) directory for a live integration test with service account
+authentication and batch processing. It calls the real Google API, so it is marked
+`#[ignore]`: put your service account key at `./test.json` and run
+`cargo test -- --ignored`. Mock-server tests covering success and error paths live
+in `src/http/mod.rs` and run with a plain `cargo test`.
 
 ## Requirements
 
-- Rust 1.70 or later
+- Rust 1.85 or later
 - Tokio runtime for async operations
 
 ## Contributing
@@ -227,6 +242,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Crates.io](https://crates.io/crates/google-indexing-api)
 - [Documentation](https://docs.rs/google-indexing-api)
+- [Changelog](CHANGELOG.md)
 - [Repository](https://github.com/uiuifree/rust-google-indexing-api)
 - [Google Indexing API Documentation](https://developers.google.com/search/apis/indexing-api/v3/quickstart)
 

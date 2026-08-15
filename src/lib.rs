@@ -15,8 +15,8 @@
 //!         .batch(
 //!             token,
 //!             vec![
-//!                 "http://!example.com/widgets/1".to_string(),
-//!                 "http://!example.com/widgets/2".to_string(),
+//!                 "https://example.com/widgets/1".to_string(),
+//!                 "https://example.com/widgets/2".to_string(),
 //!             ],
 //!             UrlNotificationsType::UPDATED,
 //!         )
@@ -32,7 +32,7 @@
 //!     GoogleIndexingApi::url_notifications()
 //!         .get_metadata(
 //!             token,
-//!             "http://!example.com/widgets/1",
+//!             "https://example.com/widgets/1",
 //!         )
 //!         .await;
 //! }
@@ -69,15 +69,16 @@ pub enum UrlNotificationsType {
     DELETED,
 }
 
-impl ToString for UrlNotificationsType {
-    fn to_string(&self) -> String {
-        match self {
-            UrlNotificationsType::UPDATED => "URL_UPDATED".to_string(),
-            UrlNotificationsType::DELETED => "URL_DELETED".to_string(),
+impl std::fmt::Display for UrlNotificationsType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
+            UrlNotificationsType::UPDATED => "URL_UPDATED",
+            UrlNotificationsType::DELETED => "URL_DELETED",
             UrlNotificationsType::UrlNotificationTypeUnspecified => {
-                "URL_NOTIFICATION_TYPE_UNSPECIFIED".to_string()
+                "URL_NOTIFICATION_TYPE_UNSPECIFIED"
             }
-        }
+        };
+        f.write_str(value)
     }
 }
 
@@ -94,22 +95,22 @@ impl UrlNotificationsApi {
         url: &str,
         url_type: UrlNotificationsType,
     ) -> Result<Value, GoogleApiError> {
-        Ok(HttpClient::post(
+        HttpClient::post(
             token,
-            format!(r#"https://indexing.googleapis.com/v3/urlNotifications:publish"#,).as_str(),
+            "https://indexing.googleapis.com/v3/urlNotifications:publish",
             json!({
                 "url": url,
                 "type": url_type.to_string(),
             }),
         )
-        .await?)
+        .await
     }
     pub async fn get_metadata(
         &self,
         token: &str,
         url: &str,
     ) -> Result<ResponseUrlNotificationMetadata, GoogleApiError> {
-        Ok(HttpClient::get(
+        HttpClient::get(
             token,
             format!(
                 r#"https://indexing.googleapis.com/v3/urlNotifications/metadata?url={}"#,
@@ -117,7 +118,7 @@ impl UrlNotificationsApi {
             )
             .as_str(),
         )
-        .await?)
+        .await
     }
     pub async fn batch(
         &self,
@@ -125,7 +126,7 @@ impl UrlNotificationsApi {
         urls: Vec<String>,
         url_type: UrlNotificationsType,
     ) -> Result<Vec<ResponseGoogleIndexingBatch>, GoogleApiError> {
-        Ok(HttpClient::execute(token, urls, url_type).await?)
+        HttpClient::execute(token, urls, url_type).await
     }
 }
 
@@ -168,10 +169,6 @@ impl ResponseGoogleIndexingBatch {
         self.value.as_str()
     }
     pub fn json(&self) -> Value {
-        let v = serde_json::from_str(self.value.as_str());
-        if v.is_ok() {
-            return v.unwrap();
-        }
-        Value::default()
+        serde_json::from_str(self.value.as_str()).unwrap_or_default()
     }
 }
