@@ -26,14 +26,14 @@ jobs:
       - name: Doc tests
         run: cargo test --doc
 
-  # Cargo.toml の rust-version = "1.85" を保証する
+  # Cargo.toml の rust-version = "1.88" を保証する
   msrv:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.85"
+          toolchain: "1.88"
       - uses: Swatinem/rust-cache@v2
       - name: Check on MSRV
         run: cargo check

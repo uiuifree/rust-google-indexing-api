@@ -2,7 +2,7 @@
 name = "google-indexing-api"
 version = "1.1.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.88"
 
 authors = ["uiuifree"]
 description = "Client for the Google Indexing API: notify Google of updated or deleted URLs one by one or in batch, and fetch notification metadata"

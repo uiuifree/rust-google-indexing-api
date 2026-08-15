@@ -227,7 +227,7 @@ in `src/http/mod.rs` and run with a plain `cargo test`.
 
 ## Requirements
 
-- Rust 1.85 or later
+- Rust 1.88 or later
 - Tokio runtime for async operations
 
 ## Contributing
@@ -245,5 +245,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Changelog](CHANGELOG.md)
 - [Repository](https://github.com/uiuifree/rust-google-indexing-api)
 - [Google Indexing API Documentation](https://developers.google.com/search/apis/indexing-api/v3/quickstart)
-
 

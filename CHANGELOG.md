@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GoogleApiError::InvalidArgument` instead of sending them (the API limit is 100).
 - The default TLS backend changed from native-tls (OpenSSL) to rustls, following
   the reqwest 0.13 update.
-- The minimum supported Rust version is now 1.85.
+- The minimum supported Rust version is now 1.88.
 
 ### Added
 
