@@ -1,0 +1,19 @@
+# google-indexing-api
+
+> Async Rust client for the Google Indexing API v3. Notify Google that a URL was updated or deleted (single request or a batch of up to 100), and fetch the notification metadata Google holds for a URL. Intended for JobPosting (Google for Jobs) and BroadcastEvent pages.
+
+Crate name: `google-indexing-api`. Public items: `GoogleIndexingApi::url_notifications()` returns `UrlNotificationsApi` with `publish`, `get_metadata`, and `batch`; `UrlNotificationsType::{UPDATED, DELETED}`; `ResponseUrlNotificationMetadata`; `ResponseGoogleIndexingBatch`; `GoogleApiError::{Connection, JsonParse, HttpStatus, InvalidArgument}`. Every method takes an OAuth 2.0 access token as `&str`; the crate does not obtain tokens (use `yup-oauth2` or `gcp_auth` with scope `https://www.googleapis.com/auth/indexing`).
+
+## Documentation
+
+- [README](https://github.com/uiuifree/rust-google-indexing-api/blob/main/README.md): overview, installation, code examples, FAQ
+- [API reference on docs.rs](https://docs.rs/google-indexing-api): rustdoc for every public item
+- [CHANGELOG](https://github.com/uiuifree/rust-google-indexing-api/blob/main/CHANGELOG.md): version history and breaking changes
+- [examples/publish.rs](https://github.com/uiuifree/rust-google-indexing-api/blob/main/examples/publish.rs): notify one URL and read its metadata
+- [examples/batch.rs](https://github.com/uiuifree/rust-google-indexing-api/blob/main/examples/batch.rs): notify many URLs in one request
+
+## Upstream
+
+- [Google Indexing API quickstart](https://developers.google.com/search/apis/indexing-api/v3/quickstart)
+- [urlNotifications reference](https://developers.google.com/search/apis/indexing-api/v3/reference/indexing/rest/v3/urlNotifications)
+- [Batch requests](https://developers.google.com/search/apis/indexing-api/v3/using-api#batching)

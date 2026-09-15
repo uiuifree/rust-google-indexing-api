@@ -1,6 +1,50 @@
 use std::fmt::{Debug, Display, Formatter};
 
 /// Error type returned by all API calls.
+///
+/// It implements [`std::error::Error`] and [`Display`], so it works with `?` and
+/// `Box<dyn std::error::Error>`. The variants tell you where the call failed:
+/// before sending ([`InvalidArgument`](Self::InvalidArgument)), while sending
+/// ([`Connection`](Self::Connection)), in Google's answer
+/// ([`HttpStatus`](Self::HttpStatus)), or while reading the answer
+/// ([`JsonParse`](Self::JsonParse)).
+///
+/// # Example
+///
+/// ```
+/// use google_indexing_api::GoogleApiError;
+///
+/// let error = GoogleApiError::HttpStatus(403, r#"{"error":{"status":"PERMISSION_DENIED"}}"#.into());
+/// assert_eq!(
+///     error.to_string(),
+///     r#"http status 403: {"error":{"status":"PERMISSION_DENIED"}}"#
+/// );
+///
+/// // Usable as a boxed error
+/// let boxed: Box<dyn std::error::Error> = Box::new(error);
+/// assert!(boxed.to_string().starts_with("http status 403"));
+/// ```
+///
+/// Matching on the variants:
+///
+/// ```no_run
+/// use google_indexing_api::{GoogleApiError, GoogleIndexingApi, UrlNotificationsType};
+///
+/// # async fn run(token: &str) {
+/// let result = GoogleIndexingApi::url_notifications()
+///     .publish(token, "https://example.com/jobs/1", UrlNotificationsType::UPDATED)
+///     .await;
+///
+/// match result {
+///     Ok(response) => println!("accepted: {response}"),
+///     Err(GoogleApiError::HttpStatus(429, _)) => eprintln!("daily quota exhausted"),
+///     Err(GoogleApiError::HttpStatus(status, body)) => eprintln!("{status}: {body}"),
+///     Err(GoogleApiError::Connection(e)) => eprintln!("could not reach Google: {e}"),
+///     Err(GoogleApiError::JsonParse(e)) => eprintln!("unexpected response: {e}"),
+///     Err(GoogleApiError::InvalidArgument(e)) => eprintln!("bad input: {e}"),
+/// }
+/// # }
+/// ```
 pub enum GoogleApiError {
     /// Failed to connect or send the request.
     Connection(String),

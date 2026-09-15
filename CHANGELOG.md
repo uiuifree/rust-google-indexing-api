@@ -5,6 +5,33 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Rewrote the README so that it explains what the crate does and does not do,
+  maps each Google Indexing API endpoint to the crate method, and adds quota,
+  FAQ, alternatives, and a Japanese summary. Its code examples now compile as
+  doc tests.
+- The crate-level documentation on docs.rs is now generated from the README,
+  and every public item has a doc comment (`#![warn(missing_docs)]`) with a
+  code example; examples that need no credentials run as doc tests.
+- crates.io metadata: lowercase searchable keywords (`google`, `indexing-api`,
+  `seo`, `google-for-jobs`, `job-posting`), the `asynchronous` category,
+  a `homepage`, and `exclude` for local-only files.
+
+### Added
+
+- Runnable examples: `examples/publish.rs` and `examples/batch.rs`.
+- `llms.txt`, `CONTRIBUTING.md`, and `SECURITY.md`.
+
+### Fixed
+
+- `GoogleApiError` could not be imported from outside the crate
+  (`use google_indexing_api::GoogleApiError;` failed with "enum is private"),
+  because a private `use` inside `lib.rs` shadowed the public re-export.
+  Matching on error variants as shown in the README now compiles.
+
 ## [1.1.0] - 2026-08-15
 
 ### Breaking
